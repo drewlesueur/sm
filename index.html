@@ -1,0 +1,507 @@
+<!doctype html> 
+<html> 
+<head> 
+<script src = "j.js"></script> 
+<script src = "json.js"></script> 
+	
+	
+<script>
+var index  = 0;
+var input = "";
+var selected = $('nothing');
+var dropdown_index = 0;
+var letters_down = {}; // like a set of letters down
+
+
+function is_ctrl_down() {
+    return 17 in letters_down;
+}
+
+function is_alt_down() {
+  return 17 in letters_down;
+}
+
+function is_shift_down() {
+  return 16 in letters_down;
+}
+
+
+ 
+//makes an array out of a string
+function a(str) {
+    return str.split(" ")
+}
+ 
+ 
+ 
+//makes an input table
+function make_input_table(arr) {
+    var ret = "<table>";
+    for (var i in arr) {
+        ret += "" 
+            + "<tr>"
+                + "<td>"
+                    + arr[i]
+                + "</td>"
+                + "<td>"
+                    + "<input type = text id = "+arr[i]+">"
+                + "</td>"
+            + "</tr>"
+    } 
+    ret += "</table>"
+    return $(ret);
+}
+ 
+ 
+function getIdMaker() {
+    var x = 0;
+    function inc() {
+        x = x + 1;
+        return x;
+    }
+    return inc;
+}
+var get_id = getIdMaker();
+ 
+ 
+function tool_tip() {
+return function(e){
+    e.stopPropagation();
+    if (e.target != this) {
+        return;
+    }
+        
+    
+    var box = $(this);
+    $('.tooltip').remove()
+    var tt_id = get_id();
+    
+    var tt = $("<div id = '"+tt_id+"'class = 'tooltip'>controls</div>")
+    tt.css({top: e.pageY, left: e.pageX});
+    var table = make_input_table(a("x y width height bgcolor color font font-size"))
+    table.attr('id', get_id()); 
+    tt.append(table);
+    tt.append($("<a href = '#'>edit text</a>").click(function(e){
+        e.preventDefault();
+        box.resizable("destroy")
+        $('#' + tt_id).remove();
+        var text_id = get_id();
+        box.html($("<textarea style = 'width: 100%; height: 100%' id = '" + text_id +"'>" + box.html() +"</textarea>"))
+        box.append($("<a href = #'>save</a>").click(function(e){
+            box
+                .html($('#' + text_id).val())
+                .resizable({ handles: 'n, e, s, w, ne, nw, se, sw' })
+            return false;
+        }))
+        return false;
+    }))
+    $(document.body).append(tt);
+}
+}
+
+ 
+function make_selected(i) {
+    if (!is_ctrl_down()) {
+        $('.sf-box, #page').removeClass('selected')
+    }
+    if (i.hasClass('selected')) {
+        i.removeClass('selected')
+    } else {
+        i.addClass('selected')
+    }
+    
+    
+    clear_command_line();
+}
+
+function add_selected(i) {
+    i.addClass('selected')
+    clear_command_line();
+}
+ 
+function clear_command_line() {
+    $('.has-command-line').removeClass('has-command-line');
+    $('.command-line').remove();
+    $('.options').remove();
+    dropdown_index = 0;
+}
+ 
+function is_selected(i) {
+    return i.hasClass('selected')
+}
+
+function selecteds() {
+    return $('.selected')
+}
+ 
+var offX = $('#page').offset().left 
+var funcs = {
+    'draggable' : function(i) {
+        //i is a jQuery item;
+        i.mousedown(function(e){
+            e.preventDefault();            
+            var was_selected = is_selected(i);
+            if (!was_selected) {
+                make_selected(i);
+            } 
+            var moved = 0; //weather the user has moved the mouse 
+            e.stopPropagation();
+            var targetX = e.pageX - $(this).offset().left   //todo: more standard way of target?
+            var targetY = e.pageY - $(this).offset().top
+            
+            var other_selecteds = [];
+            selecteds().each(function(index){
+                other_selecteds.push({
+                    targetX : e.pageX - $(this).offset().left,
+                    targetY : e.pageY - $(this).offset().top,
+                    el : $(this)
+                }) 
+            })
+            
+            
+            function body_move(e) {
+                moved = 1
+                if (was_selected == false) {
+                    make_selected(i)
+                    other_selecteds = [];
+                }
+                i.css({left: e.pageX - ($('#page').offset().left + targetX)  + 'px', top: e.pageY - targetY + 'px'})
+                var group
+                for (var index in other_selecteds) {
+                   group = other_selecteds[index];
+                   group.el.css({left: e.pageX - ($('#page').offset().left + group.targetX)  + 'px', top: e.pageY - group.targetY + 'px'})
+                }
+            }
+            function mouseup_func(e){
+                    $(document.body).unbind('mousemove', body_move)
+                    $(document.body).unbind('mouseup', mouseup_func) //get rid of the mouseup func
+                    if (was_selected) {                    
+                        if (moved == 0) {
+                            make_selected(i)
+                        } else if (was_selected == false){
+                            
+                        }
+                    }
+                }
+            $(document.body)
+                .mousemove(body_move)
+                .mouseup(mouseup_func);
+        })
+        return i;
+    },
+}
+ 
+function make_box() {
+	
+	var id = 'b_'+index;
+	var add = $('<div class ="sf-box" id = "b_'+index+'" sf-type = "box" class = "sf">hi</div>')
+	//$(document.body).append(add)
+	$('#page').append(add)
+	funcs.draggable($('#' + id)); //make it draggable my way
+	
+	
+    
+    
+        index++;
+        return $('#' + id);
+        
+	index = index + 1
+	
+}
+ 
+ 
+    var commands_pre = {
+        'background color' : ['bg', "bgcolor" , "background color"],
+        'x' : a('x left'),
+        y: a('y top'),
+        'width' : a('width'),
+        'height' : ['height'],
+        'add box' : a('add-box addbox box'),
+        'site finish' : a('site-finish site finish'),
+        'class' : ['add class']
+    }
+    
+    //assocaited with commands_pre
+    var label_props = {
+        'background color' : 'bg-color',
+        'x' : 'x',
+        'y' : 'y',
+        'width' : 'width',
+        'height' : 'height',
+        'add box' : 'addbox', //this one is an action
+        'site finish' : 'site-finish'
+    }
+    
+    var prop_actions = {
+        'x' : function(j, x){
+            j.css('left', x)
+        }
+    }
+    
+    
+    //make comands like below
+    var commands = {}
+    for (var i in commands_pre) {
+        var list = commands_pre[i];
+        commands[i] = i;
+        var item
+        for(var j in list) {
+            item = list[j]
+            commands[item] = i;
+        }
+    } 
+   
+function get_commands(str) {
+    var ret = {};
+    for (var i in commands) {
+        if (str == i.substr(0,str.length)) {
+            ret[commands[i]] = "";
+        } else {
+        }
+    }
+    return ret;
+}
+
+function draw_selector(i) {
+    i.mousedown(function(e){
+            e.stopPropagation();
+            
+            var targetX = e.pageX - $(this).offset().left   //todo: more standard way of target?
+            var targetY = e.pageY - $(this).offset().top
+            function body_move(e) {
+                i.css({left: e.pageX - ($('#page').offset().left + targetX)  + 'px', top: e.pageY - targetY + 'px'})
+            }
+            $(document.body)
+                .mousemove(body_move)
+                .mouseup(function(){$(document.body).unbind('mousemove', body_move)});
+        })
+}
+
+function array_like(a,b) {
+    if (a.length != b.length){ return false;}
+    
+    for (var i in a) {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+ 
+ 
+function the_left(i) {
+    return (i.css('left').split('px')[0] - 0) || 0;
+}
+ 
+function the_top(i) {
+    return (i.css('top').split('px')[0] - 0) || 0
+}
+ 
+ 
+function do_dropdown() {
+    var commands = get_commands( $(".command-line:eq(0)").text() );
+            //if there is a new list of commands
+            $('.options').remove();
+             //alert(the_left($('.command-line')) + 'px')
+            $('#page').append(
+                $("<div></div>").addClass('options').css({position: 'absolute', left: the_left($('.command-line')) + 'px', 'top' : (the_top($('.command-line')) + $('.command-line').height()) + "px" })
+            )    
+           for (var i in commands) {
+                $('.options').append("<div data-prop = '"+ label_props[i] + "' class = 'options-item'>"+i+"</div>")
+           }
+           $('.options-item:eq(0)').addClass('options-item-selected');          
+}
+
+function hilight_dropdown() {
+   
+    var len = $('.options-item').length;
+    $('.options-item').removeClass('options-item-selected')
+    $('.options-item:eq('+ (dropdown_index % len) + ')').addClass('options-item-selected') 
+}
+
+
+function edit_val(prop,value) {
+    alert(prop + " " + value)
+}
+
+
+ 
+$(document).ready(function(){
+$('nothing').addClass('test')
+ 
+    //$('.meta-control').draggable({handle: 'meta-handle'});
+    
+    $(document).keyup(function(e){
+        delete letters_down[e.keyCode]
+    })
+    
+    $(document).keydown(function(e){
+        var key = e.keyCode
+        var chr = String.fromCharCode(key).toLowerCase();
+        console.log(key)
+        if (key == 27) {
+            clear_command_line();
+        }
+        if (key == "32") {
+            chr = " "
+        }
+        
+        letters_down[key] = "";
+        
+        var old_commands = commands;
+        
+        //up arrow
+        if (key == 38) {
+            dropdown_index--
+            if (dropdown_index < 0) {
+               dropdown_index = $('.options-item').length - 1;
+            }
+            console.log("dropdown_index is " + dropdown_index)
+            hilight_dropdown();
+        }
+        
+        //down arrow
+        if (key == 40) {
+            dropdown_index++;
+            hilight_dropdown();
+        }
+        
+        if (key == 13) {
+            var label = $('.options-item-selected').text();
+            var prop = $('.options-item-selected').attr('data-prop');
+            var value = prompt(label);
+            edit_val(prop, value)
+        }
+        
+        //if it is an alpha character
+        if ((key < 91 && key > 64) || key == 32) {
+            $('.selected:not(.has-command-line)').each(function(){
+                $('#page').append(
+                    $('<div></div>').addClass("command-line").css({position: 'absolute', left: $(this).css('left'), top : $(this).css('top')})
+                )
+            }).addClass('has-command-line')
+            $(".command-line").text($(".command-line:eq(0)").text() + chr)
+            do_dropdown();
+        }
+        
+        if (key == 8) {
+             $(".command-line").text($(".command-line:eq(0)").text().substr(0, $(".command-line:eq(0)").text().length - 1))
+             do_dropdown();
+        }
+        e.preventDefault();
+    })
+    
+    $('#page').mousedown(function(){
+        make_selected($(this));
+    })
+    
+    draw_selector($('#page'));
+})
+ 
+</script> 
+ 
+ 
+<style> 
+.options{
+    position: absolute;
+    background-color: #dddddd;
+}
+
+.options-item-selected {
+    background-color: #000033;
+    color: white;
+}
+ 
+.sf-box {
+    width: 50px;
+    height: 50px;
+    background-color: yellow;
+    position: absolute;
+    resize: both;
+    overflow: hidden;
+    
+}
+ 
+.sf{
+	position: absolute;
+}
+ 
+.meta-control {
+    background-color: #ddffff;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+}
+ 
+.meta-control a {
+    display: block;
+ 
+}
+ 
+.tooltip {
+    /*width: 100px;
+    height: 100px;*/
+    position: absolute;
+    background-color: lightgray;
+    border: 1px solid black;
+}
+ 
+#page {
+    width: 1024px;
+    height: 800px;
+    background-color: white;
+    position: relative;
+}
+ 
+body {
+    background-color: gray;
+}
+ 
+.selected {
+    border: 1px solid brown;
+}
+*{
+    padding: 0px;
+    margin: 0px;
+}
+ 
+ 
+.command-line {
+    background-color: #eeeeee;
+}
+</style> 
+ 
+</head> 
+<body> 
+ 
+<div align = "center"><div id = "page" > 
+ 
+</div> 
+ 
+ 
+<div class = "meta-control"> 
+<div class = "meta-handle">Options</div> 
+<a href = "javascript:make_box(); void(0);">box</a> 
+<a href = "javascript:make_image(); void(0);">image</a> 
+<a href = "javascript:make_button(); void(0);">button</a> 
+<a href = "javascript: make_navigation(); void(0);">navigation</a> 
+<a href = "javascript: make_line(); void(0);">line</a> 
+<a href = "javasscript: make_form(); void(0);">form</a> 
+<a href = "javascript: make_text(); void(0);">text</a> 
+ 
+</div> 
+ 
+ 
+</body> 
+</html> 
+ 
+ 
+<!--
+ 
+  //.resizable({ handles: 'n, e, s, w, ne, nw, se, sw' })
+            //.draggable({snap : true, snapTolerance: 4})
+            //.click(updateInfo)
+            //.click(tool_tip())
+            
+ 
+-->
